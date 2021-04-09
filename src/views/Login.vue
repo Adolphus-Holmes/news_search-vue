@@ -117,6 +117,7 @@ export default {
             sessionStorage.setItem("subscribe", JSON.stringify(response.data.subscribe));
         },
         async login(){
+            this.fullscreenLoading = true;
             setTimeout(() => {
                 this.fullscreenLoading = false;
                 }, 1500);
@@ -127,7 +128,6 @@ export default {
             let username = encrypt.encrypt(this.form.username)
             let url = "/api/login";
             let data = {username:username,password:password,key:key.data,longtime:this.remember}
-            this.fullscreenLoading = true;
             let response = await axios.post(url,data);
             if(response.data){
                 window.opener.postMessage(response.data, window.opener.location.origin);

@@ -16,6 +16,7 @@
                             </div> -->
                         </div>
                         <el-dropdown-menu slot="dropdown">
+                            <li style="list-style: none;line-height: 36px;padding: 0 20px;margin: 0;font-size: 14px;color: #606266;outline: 0;">你好，{{petname}}</li>
                             <el-dropdown-item command="logout">注销</el-dropdown-item>
                         </el-dropdown-menu>
                     </el-dropdown>
@@ -28,7 +29,7 @@
                 <ul class="infinite-list"  style="padding-left:10px;height:83v;hoverflow:auto;" v-infinite-scroll="load" :vertical="false" infinite-scroll-immediate="false" >
                     <div v-for="(items,indexs) in subscribedata" v-bind:key="indexs" >
                         <div v-for="(item,index) in subscribedata[indexs]" v-bind:key="index">
-                            <el-card shadow="hover" class="newscard" style="position: relative;height:90px;font-size:16px;text-align:left;-moz-user-select:none;" @click.native="setArticle(item)">
+                            <el-card shadow="hover" class="newscard" style="position: relative;height:90px;font-size:16px;text-align:left;-moz-user-select:none;" @click.native="setArticle(item.id)">
                             {{item.title}}
                                 <el-row style="position:absolute;bottom: 0;">
                                     <el-col :span="24" style="font-size:12px">{{item.release_date.replace(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/,"$2月$3日 $4:$5")}}</el-col>
@@ -42,14 +43,14 @@
             <el-aside style="width: 30vh;" v-if="seehistory">
             </el-aside>
             <el-main>
-                <div v-if="!seehistory && Article.title">
-                    <el-scrollbar style="height:81vh;">
+                <div v-if="!seehistory && Article.title" v-loading="loading">
+                    <el-scrollbar ref="view" style="height:81vh;">
                         <div style="padding-right:20px;width:97%;text-align:left">
                             <el-row>
                                 <el-col :span="24"><h1 style="font-size:20px;">{{Article.title}}</h1></el-col>
                             </el-row>
                             <el-row>
-                                <el-col :span="24" style="font-size:16px;padding-bottom:-30px" v-if="Article.subtitle"><h3>{{Article.subtitle}}</h3></el-col>
+                                <el-col :span="24" style="font-size:16px;padding-bottom:-30px" v-if="Article.subtitle"><h3 style="font-size:18px;">{{Article.subtitle}}</h3></el-col>
                             </el-row>
                             <el-row style="font-size:12px;padding-top:15px;">
                                 <el-col :span="6" v-show="Article.release_date">{{Article.release_date.replace(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/,"$1年$2月$3日 $4:$5:$6")}}</el-col>
@@ -65,10 +66,20 @@
                                 <el-col :span="12" v-show="Article.editor">责编：{{Article.editor}}</el-col>
                                 <el-col :span="12"><el-link :href=Article.url target="_blank" style="float:right">查看原文</el-link></el-col>
                             </el-row>
-                            <el-divider></el-divider>
-                            <el-row style="padding-right:20px;width:97%;text-align:left">
-                              <el-col :span="24"><h2 style="font-size:18px;">相似文章</h2></el-col>
-                            </el-row>
+                            <div v-if="similar.length">
+                                <el-divider></el-divider>
+                                <el-row style="padding-right:20px;width:97%;text-align:left">
+                                    <el-col :span="24"><h2 style="font-size:18px;margin-bottom:10px">相似文章</h2></el-col>
+                                </el-row>
+                                <el-card v-for="item,index in similar" :key="index" class="similarcard" style="font-size:16px;text-align:left;" @click.native="setArticle(item.id)">
+                                    <span style="padding-left:20px;">{{item.title}}</span>
+                                    <el-row style="bottom: 0;">
+                                        <el-col :span="24" style="font-size:12px"><span style="padding-left:20px;">{{item.date.replace(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/,"$1年$2月$3日 $2月$3日 $4:$5")}}</span></el-col>
+                                    </el-row>
+                                    <el-divider style="margin-top:5px;margin-bottom:5px"></el-divider>
+                                </el-card>
+                            </div>
+
                         </div>
                     </el-scrollbar>
                 </div>
@@ -337,6 +348,7 @@ export default {
             subscribedata:[],
             innerVisible:false,
             Article:{},
+            loading:false,
             size:25,
             petname:"",
             enable:true,
@@ -450,7 +462,7 @@ export default {
                 console.log(this.subscribedata);
             }
         },
-        gotosearch(){
+        async gotosearch(){
             this.pagenum = 1;
             this.gethistorycount();
             this.gethistory(this.pagenum)
@@ -483,16 +495,16 @@ export default {
         },
         async gethistorycount(){
             let url = "/api/historycount";
-            let start = "";
-            let end = "";
+            let from = "";
+            let to = "";
             if(this.datevalue){
-                end = this.datevalue[1]
-                start = this.datevalue[0]
+                to = this.datevalue[1]
+                from = this.datevalue[0]
             }
             let response = await axios.get(url, {
                 params: {
-                    from:start,
-                    to:end,
+                    from:from,
+                    to:to,
                 }
             })
             this.count = Math.ceil(response.data/this.size)
@@ -500,19 +512,15 @@ export default {
         },
         async gethistory(num){
             let url = "/api/history";
-            let start = "";
-            let end = "";
+            let from = "";
+            let to = "";
             if(this.datevalue){
-                end = this.datevalue[1]
-                start = this.datevalue[0]
+                to = this.datevalue[1]
+                from = this.datevalue[0]
             }
+            let data = {page:num,size:this.size,from:from,to:to}
             let response = await axios.get(url, {
-                params: {
-                    page:num,
-                    size:this.size,
-                    from:start,
-                    to:end,
-                }
+                params:data
             })
             this.formatdate(response.data);
         },
@@ -602,20 +610,26 @@ export default {
             this.getsubscribe(this.subscribenum)
             //this.gethistory(this.daynum);
         },
-        hload(){
-            this.daynum -=1;
-            this.gethistory(this.daynum);
-        },
-        setArticle(item){
-            this.Article = item;
+        async setArticle(id){
+            this.loading = true
+            let url = "/api/find";
+            let response = await axios.get(url, {
+            params: {
+                id: id,
+                }
+            })
+            this.loading = false
+            this.Article = response.data;
+            this.Article.text = "\t"+this.Article.text.trim()
             this.Article.text = this.Article.text.replace(/。\s{3,}/g,"。\n　　");
+            this.$refs['view'].wrap.scrollTop = 0
             this.getsimilar()
         },
         async getsimilar(){
             let url = "/vec/similar"
             axios.get(url, {
                 params: {
-                    keyword:this.Article.title,
+                    title:this.Article.title,
                     }
             }).then((data)=>{
                 this.similar = data.data
@@ -700,7 +714,7 @@ export default {
         if(!this.subscribe.length){
             this.seehistory = true
         }
-        this.gotosearch();
+        this.gethistory(1);
         this.load();
     }
 }
@@ -716,6 +730,13 @@ export default {
     -ms-user-select:none; /*IE10*/   
     user-select:none;   
 }
+.similarcard{box-shadow: none;border:none;
+    -webkit-touch-callout:none;  /*系统默认菜单被禁用*/   
+    -webkit-user-select:none; /*webkit浏览器*/   
+    -khtml-user-select:none; /*早期浏览器*/   
+    -moz-user-select:none;/*火狐*/   
+    -ms-user-select:none; /*IE10*/   
+    user-select:none;   } 
 .ibx-advice{display: flex;align-items: center;justify-content: center;position:fixed;right:-81px;overflow:hidden;height:44px;width:126px;background-color:#FFF;-moz-transition:right .5s;-webkit-transition:right .5s;transition:right .5s;cursor:pointer;z-index:10}
 .ibx-advice-logo{width:43px;height:42px;border:1px solid #D6D6D6;border-right:none;cursor:pointer}
 .ibx-advice-ctx{line-height:42px;height:42px;width:80px;border:1px solid #D6D6D6;border-left:none;color:#575757;font-size:14px;text-align:center}
@@ -732,6 +753,7 @@ export default {
 .el-table::before {
   height: 0px;
 }
+.similarcard .el-card__body{padding:0px;}
 .customer-table .el-table__fixed-right::before,
 .el-table__fixed::before {
   width: 0;

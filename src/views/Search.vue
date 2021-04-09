@@ -23,8 +23,9 @@
                         </div> -->
                     </div>
                     <el-dropdown-menu slot="dropdown">
+                        <li style="list-style: none;line-height: 36px;padding: 0 20px;margin: 0;font-size: 14px;color: #606266;outline: 0;">你好，{{petname}}</li>
                         <el-dropdown-item v-if="!logined" command="login">登录</el-dropdown-item>
-                        <el-dropdown-item v-if="logined" command="center">个人主页</el-dropdown-item>
+                        <el-dropdown-item v-if="logined" command="center">个人中心</el-dropdown-item>
                         <el-dropdown-item v-if="logined" command="logout">注销</el-dropdown-item>
                     </el-dropdown-menu>
                 </el-dropdown>
