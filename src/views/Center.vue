@@ -159,7 +159,7 @@
                             <div class="ibx-advice-logo">
                                 <i style="padding-top:4px" class="el-icon-time"></i>
                             </div>
-                            <div class="ibx-advice-ctx" @click="seehistory = !seehistory">
+                            <div class="ibx-advice-ctx" @click="changesee()">
                                 搜索历史
                             </div>
                         </div>
@@ -171,7 +171,7 @@
                         <div class="ibx-advice-logo">
                             <i style="padding-top:4px" class="el-icon-s-management"></i>
                         </div>
-                        <div class="ibx-advice-ctx"  @click="seehistory = !seehistory">
+                        <div class="ibx-advice-ctx"  @click="changesee()">
                             查看订阅
                         </div>
                       </div>
@@ -243,6 +243,7 @@
                         <el-col :span="24" style="">
                             <el-switch
                                 v-model="pushrecord"
+                                @change="pushchange()"
                                 active-color="#13ce66"
                                 inactive-color="#ff4949"
                                 active-text="开启"
@@ -264,6 +265,7 @@
                         <el-col :span="24" style="">
                             <el-switch
                                 v-model="saverecord"
+                                @change="savechange()"
                                 active-color="#13ce66"
                                 inactive-color="#ff4949"
                                 active-text="开启"
@@ -452,6 +454,12 @@ export default {
                     )
                 }
             }
+        },
+        savechange(){
+            localStorage.setItem("saverecord", this.saverecord);
+        },
+        pushchange(){
+            localStorage.setItem("pushrecord", this.pushrecord);
         },
         async getsubscribe(num){
             if(this.subscribe.length){
@@ -704,17 +712,28 @@ export default {
             }else{
                 this.$message.error('操作出错');
             }
+        },
+        getLocal(){
+            this.saverecord = !localStorage.getItem('saverecord')||localStorage.getItem('saverecord')=='true' 
+            this.pushrecord = !localStorage.getItem('pushrecord')||localStorage.getItem('pushrecord')=='true' 
+            this.seehistory = localStorage.getItem('seehistory')&&localStorage.getItem('seehistory')=='true'//seehistory初始值为false
+        },
+        changesee(){
+            this.seehistory = !this.seehistory;
+            localStorage.setItem("seehistory",this.seehistory);
         }
     },
     created(){
     },
     activated(){
-        document.title = "个人中心 - 个人新闻检索网站"
-        this.setinfo()
+        document.title = "个人中心 - 个人新闻检索网站";
+        this.setinfo();
+        this.getLocal();
         if(!this.subscribe.length){
             this.seehistory = true
+            localStorage.setItem("seehistory",this.seehistory);
         }
-        this.gethistory(1);
+        this.gotosearch();
         this.load();
     }
 }
