@@ -224,7 +224,9 @@
                     </el-col>
                     <el-col :span="6">
                         <el-button  style="float:right" @click="enable = false" v-if="enable">更改</el-button>
-                         <el-button  style="float:right" @click="setpetname()" v-else-if="!enable" type="primary">保存</el-button>
+                        <el-popconfirm title="确认更改昵称？" v-else-if="!enable" @confirm="setpetname()" @cancel="initpetname()">
+                            <el-button  style="float:right" slot="reference" type="primary">保存</el-button>
+                        </el-popconfirm>
                     </el-col>
                 </el-row>
                 <el-row style="padding-top:25px">
@@ -309,7 +311,7 @@
                         <el-input v-model="form.newpassword" show-password></el-input>
                 </el-form-item>
                 <el-form-item label="确认密码" style="margin-top: 0vh;" prop="confirmword">
-                        <el-input v-model="form.confirmword"></el-input>
+                        <el-input v-model="form.confirmword" show-password></el-input>
                 </el-form-item>
                 <el-form-item style="margin-bottom:0">
                     <el-button-group style="float:right">
@@ -346,8 +348,10 @@ export default {
             multipleSelection: [],
             wordVisible:false,
             password:"",
+            init_petname:"",
             newpassword:"",
             subscribedata:[],
+            key:"",
             innerVisible:false,
             Article:{},
             loading:false,
@@ -446,7 +450,7 @@ export default {
                         if(data.data){
                             sessionStorage.clear();
                             this.$cookies.remove('XSRF-TOKEN');
-                            location.reload();
+                            this.$router.push('/home');
                         }else{
                         this.$message.error('操作出错');
                         }
@@ -560,12 +564,13 @@ export default {
                     this.subscribe.unshift(this.onesubscibe);
                     sessionStorage.setItem("subscribe", JSON.stringify(this.subscribe));
                     this.$message({
-                    message: '已订阅此关键词',
+                    message: '关键词重复',
                     type: 'success'
                     });
                     let url = "/api/setsubscribe";
                     let response = axios.post(url,this.subscribe);
                     this.innerVisible = false
+                    this.subscribe = ""
                     return response.data;
                 }
             }else{
@@ -578,6 +583,7 @@ export default {
         },
         getinfo(){
             if(!sessionStorage.getItem("username")){
+                this.$router.push('/home');
                 return false;
             }
             this.username = sessionStorage.getItem("username");
@@ -588,6 +594,7 @@ export default {
             }
             if(sessionStorage.getItem("petname") != null){
                 this.petname = sessionStorage.getItem("petname");
+                this.init_petname = sessionStorage.getItem("petname");
             }
             return true;
         },
@@ -616,7 +623,6 @@ export default {
         load(){
             this.subscribenum +=1;
             this.getsubscribe(this.subscribenum)
-            //this.gethistory(this.daynum);
         },
         async setArticle(id){
             this.loading = true
@@ -644,7 +650,15 @@ export default {
             });
             console.log(this.similar)
         },
+        initpetname(){
+            this.petname = this.init_petname;
+            this.enable = true;
+        },
         async setpetname(){
+            if(this.init_petname == this.petname){
+                this.$message.error('当前昵称与原先一致');
+                return false
+            }
             let url = "/api/setpetname"
             let data = {petname:this.petname}
             let response = await axios.patch(url,data)
@@ -655,8 +669,9 @@ export default {
                 });
                 sessionStorage.setItem("petname", this.petname);
                 this.enable = true;
+                this.init_petname = this.petname;
             }else{
-                this.$message.error('未知错误');
+                this.$message.error('操作出错');
             }
             return response.data
         },
@@ -670,20 +685,30 @@ export default {
             }
             });
         },
+        async visiblepassword(){
+            let data = await axios.get("/api/getkey", {params: {}})
+            if(data.data){
+                this.key = data.data;
+                this.wordVisible = true;
+            }else{
+                this.$message.error('操作出错');
+            }
+        },
         async setpassword(){
-            let key = await axios.get("/api/getkey", {params: {}})
             let encrypt = new JsEncrypt()
-            encrypt.setPublicKey(key.data)
+            encrypt.setPublicKey(this.data)
             let password = encrypt.encrypt(this.form.password)
             let newpassword = encrypt.encrypt(this.form.newpassword)
             let url = "/api/setpassword";
-            let data = {password:password,newpassword:newpassword}
+            let data = {password:password,newpassword:newpassword,key:key.data}
             let response = await axios.patch(url,data);
             if(response.data){
                 this.$message({
                 type: 'success',
                 message: '密码已更改!'
                 });
+                this.wordVisible = false;
+                this.resetForm('form');
             }else{
                 this.$message.error('操作出错');
             }
@@ -699,8 +724,6 @@ export default {
                     idlist.push(item.id)
                 })
             })
-            console.log(this.subscribe)
-            console.log(idlist)
             let url = "/api/delrecord"
             let response = await axios.delete(url,{data:idlist});//delete操作不同于get、post
             if(response.data){
