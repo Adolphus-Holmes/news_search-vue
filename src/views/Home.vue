@@ -16,7 +16,7 @@
                     </div> -->
                 </div>
                 <el-dropdown-menu slot="dropdown">
-                    <li style="list-style: none;line-height: 36px;padding: 0 20px;margin: 0;font-size: 14px;color: #606266;outline: 0;">你好，{{petname}}</li>
+                    <li style="list-style: none;line-height: 36px;padding: 0 20px;margin: 0;font-size: 14px;color: #606266;outline: 0;" v-if="logined">你好，{{petname}}</li>
                     <el-dropdown-item v-if="!logined" command="login">登录</el-dropdown-item>
                     <el-dropdown-item v-if="logined" command="center">个人中心</el-dropdown-item>
                     <el-dropdown-item v-if="logined" command="logout">注销</el-dropdown-item>
@@ -108,6 +108,7 @@ export default {
                 if(data.data){
                     sessionStorage.clear();
                     this.$cookies.remove('XSRF-TOKEN');
+                    this.setinfo();
                     location.reload();
                 }else{
                 this.$message.error('操作出错');
@@ -151,14 +152,40 @@ export default {
       this.hotkey = response.data;
     },
     async setinfo(){
-      let url = "/api/userinfo"
-      let response = await axios.get(url, {});
-      if(response.data){
-        sessionStorage.setItem("username", response.data.username);
-        sessionStorage.setItem("petname", response.data.petname);
-        sessionStorage.setItem("subscribe", JSON.stringify(response.data.subscribe));
-        this.logined = true;
-      }
+        if(!this.getinfo()){
+            let url = "/api/userinfo"
+            let response = await axios.get(url, {});
+            if(response.data){
+                sessionStorage.setItem("username", response.data.username);
+                if(response.data.petname){
+                    sessionStorage.setItem("petname", response.data.petname);
+                }
+                sessionStorage.setItem("subscribe", JSON.stringify(response.data.subscribe));
+                this.logined = true;
+                this.getinfo();
+            }else{
+                sessionStorage.clear();
+                this.$router.push('/home');
+            }
+        }else{
+          this.logined = true;
+        }
+      },  
+      getinfo(){
+        if(!sessionStorage.getItem("username")){
+            return false;
+        }
+        this.username = sessionStorage.getItem("username");
+        if(JSON.parse(sessionStorage.getItem("subscribe"))) {
+            this.subscribe = JSON.parse(sessionStorage.getItem("subscribe"));
+        }else {
+            this.subscribe = [];
+        }
+        if(sessionStorage.getItem("petname") != null){
+            this.petname = sessionStorage.getItem("petname");
+            this.init_petname = sessionStorage.getItem("petname");
+        }
+        return true;
     },
   },
   created(){
