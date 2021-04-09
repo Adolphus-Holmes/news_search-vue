@@ -231,7 +231,7 @@
                 </el-row>
                 <el-row style="padding-top:25px">
                     <el-col :span="24">
-                        <el-button  style="float:left;" @click="wordVisible = true">重置密码</el-button>
+                        <el-button  style="float:left;" @click="visiblepassword()">重置密码</el-button>
                     </el-col>
                 </el-row>
                 <el-row style="padding-top:25px;">
@@ -452,7 +452,7 @@ export default {
                             this.$cookies.remove('XSRF-TOKEN');
                             this.$router.push('/home');
                         }else{
-                        this.$message.error('操作出错');
+                            this.$message.error('操作出错');
                         }
                     }
                     )
@@ -549,8 +549,25 @@ export default {
                     this.getinfo();
                 }else{
                     sessionStorage.clear();
+                    this.$router.push('/home');
                 }
             }
+        },  
+        getinfo(){
+            if(!sessionStorage.getItem("username")){
+                return false;
+            }
+            this.username = sessionStorage.getItem("username");
+            if(JSON.parse(sessionStorage.getItem("subscribe"))) {
+                this.subscribe = JSON.parse(sessionStorage.getItem("subscribe"));
+            }else {
+                this.subscribe = [];
+            }
+            if(sessionStorage.getItem("petname") != null){
+                this.petname = sessionStorage.getItem("petname");
+                this.init_petname = sessionStorage.getItem("petname");
+            }
+            return true;
         },
         async addsubscribe(){
             if(this.onesubscibe.trim().length == 0){
@@ -580,23 +597,6 @@ export default {
         resetForm(formName) {
             this.$refs[formName].resetFields();
             this.wordVisible = false;
-        },
-        getinfo(){
-            if(!sessionStorage.getItem("username")){
-                this.$router.push('/home');
-                return false;
-            }
-            this.username = sessionStorage.getItem("username");
-            if(JSON.parse(sessionStorage.getItem("subscribe"))) {
-                this.subscribe = JSON.parse(sessionStorage.getItem("subscribe"));
-            }else {
-                this.subscribe = [];
-            }
-            if(sessionStorage.getItem("petname") != null){
-                this.petname = sessionStorage.getItem("petname");
-                this.init_petname = sessionStorage.getItem("petname");
-            }
-            return true;
         },
         subscribedel(index){
             this.subscribe.splice(index,1)
@@ -696,11 +696,11 @@ export default {
         },
         async setpassword(){
             let encrypt = new JsEncrypt()
-            encrypt.setPublicKey(this.data)
+            encrypt.setPublicKey(this.key)
             let password = encrypt.encrypt(this.form.password)
             let newpassword = encrypt.encrypt(this.form.newpassword)
             let url = "/api/setpassword";
-            let data = {password:password,newpassword:newpassword,key:key.data}
+            let data = {password:password,newpassword:newpassword,key:this.key}
             let response = await axios.patch(url,data);
             if(response.data){
                 this.$message({
