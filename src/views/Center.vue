@@ -468,10 +468,8 @@ export default {
         async getsubscribe(num){
             if(this.subscribe.length){
                 let url = "/api/subscribe?page="+num;
-                console.log(this.subscribe);
                 let response = await axios.post(url,this.subscribe)
                 this.subscribedata.push(response.data);
-                console.log(this.subscribedata);
             }
         },
         async gotosearch(){
@@ -484,7 +482,7 @@ export default {
             this.gethistory(this.pagenum)
         },
         formatdate(list){
-            let h= new Array();
+            let h = new Array();
             let hitem = {date:"",data:new Array()};
             let hdate="";
             list.forEach((item)=>{
@@ -520,7 +518,6 @@ export default {
                 }
             })
             this.count = Math.ceil(response.data/this.size)
-            console.log(this.count)
         },
         async gethistory(num){
             let url = "/api/history";
@@ -648,7 +645,6 @@ export default {
             }).then((data)=>{
                 this.similar = data.data
             });
-            console.log(this.similar)
         },
         initpetname(){
             this.petname = this.init_petname;
@@ -714,7 +710,6 @@ export default {
             }
         },
         handleSelectionChange(val,index) {
-            console.log(val)
             this.multipleSelection[index]=val;
         },
         async delrecord(){
@@ -728,8 +723,8 @@ export default {
             let response = await axios.delete(url,{data:idlist});//delete操作不同于get、post
             if(response.data){
                 this.$message({
-                type: 'success',
-                message: '记录已删除!'
+                    type: 'success',
+                    message: '记录已删除!'
                 });
                 this.gethistory(this.pagenum)
             }else{
