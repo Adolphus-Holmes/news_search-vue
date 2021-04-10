@@ -3,8 +3,8 @@
         <el-container>
             <el-header>
                 <el-row>
-                  <el-col :span="24" v-if="!register"><h1>登录</h1></el-col>
-                  <el-col :span="24" v-if="register"><h1>注册</h1></el-col>
+                  <el-col :span="24" v-if="!register"><h1 style="font-size:24px;">登录</h1></el-col>
+                  <el-col :span="24" v-if="register"><h1 style="font-size:24px;">注册</h1></el-col>
                 </el-row>
             </el-header>
             <el-main style="margin-top: 4vh;margin-left: 5vh;width: 80%;">
@@ -79,6 +79,7 @@ export default {
                 password: "",
                 confirmword: "",
             },
+            key:"",
             rule:{
                 username: [
                     { required: true, message: "请输入用户名", trigger: "blur" },
@@ -121,17 +122,17 @@ export default {
             setTimeout(() => {
                 this.fullscreenLoading = false;
                 }, 1500);
-            let key = await axios.get("/api/getkey", {params: {}})
             let encrypt = new JsEncrypt()
-            encrypt.setPublicKey(key.data)
+            encrypt.setPublicKey(this.key)
             let password = encrypt.encrypt(this.form.password)
             let username = encrypt.encrypt(this.form.username)
             let url = "/api/login";
-            let data = {username:username,password:password,key:key.data,longtime:this.remember}
+            let data = {username:username,password:password,key:this.key,longtime:this.remember}
             let response = await axios.post(url,data);
             if(response.data){
                 window.opener.postMessage(response.data, window.opener.location.origin);
                 this.setinfo();
+                this.fullscreenLoading = false;
                 window.close();
             }else{
                 this.$message.error('账号或密码错误');
@@ -139,10 +140,15 @@ export default {
             return response.data;
         },
         async toregister(){
+            let encrypt = new JsEncrypt()
+            encrypt.setPublicKey(this.key)
+            let password = encrypt.encrypt(this.form.password)
+            let username = encrypt.encrypt(this.form.username)
+            this.fullscreenLoading = true;
             let url = "/api/register";
-            let data = {username:this.form.username,password:this.form.password}
+            let data = {username:username,password:password,key:this.key}
             let response = await axios.post(url,data);
-            if(response){
+            if(response.data){
                 this.login()
             }else{
                 this.$message.error('注册失败');
@@ -168,20 +174,31 @@ export default {
         },
         submitForm() {
             this.$refs.form.validate((valid) => {
-            if (valid) {
-                if(this.register){
-                    this.toregister();
-                }else{
-                    this.login();
+                if (valid) {
+                    if(this.register){
+                        this.toregister();
+                    }else{
+                        this.login();
+                    }
+                }else {
+                    this.$message.error('请正确补完输入数据');
+                    return false;
                 }
-            } else {
-                this.$message.error('请正确补完输入数据');
-                return false;
+            });
+        },
+        async getkey(){
+            let data = await axios.get("/api/getkey", {params: {}})
+            if(data.data){
+                this.key = data.data;
+            }else{
+                this.$message.error('获取公钥失败');
             }
-        });
-      },
+        },
     },
     created(){
+    },
+    activated(){
+        this.getkey()
     }
 }
 </script>
