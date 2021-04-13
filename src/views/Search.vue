@@ -11,8 +11,8 @@
             </div>
             <el-col :span="4" style="padding-top: 22px;" >
                 <el-button type="primary" round style="float: right;" @click.native="dialogVisible = true">高级搜索</el-button>
-                <el-button type="primary" @click="subscribe()" v-if="cansubscribe && logined">订阅</el-button>
-                <el-button type="primary" @click="subscribe()" v-if="!cansubscribe && logined">取消订阅</el-button>
+                <el-button type="primary" @click="subscribe_btn()" v-if="!user_info.subscribe.includes(keyword) && logined">订阅</el-button>
+                <el-button class="gray_button" @click="subscribe_btn()" v-if="user_info.subscribe.includes(keyword) && logined" >已订阅</el-button>
             </el-col> 
             <el-col :span="4" style="padding-left:20px;padding-top:5px;">
                 <el-dropdown type="primary" @command="handleCommand">
@@ -23,7 +23,7 @@
                         </div> -->
                     </div>
                     <el-dropdown-menu slot="dropdown">
-                        <li style="list-style: none;line-height: 36px;padding: 0 20px;margin: 0;font-size: 14px;color: #606266;outline: 0;">你好，{{petname}}</li>
+                        <li style="list-style: none;line-height: 36px;padding: 0 20px;margin: 0;font-size: 14px;color: #606266;outline: 0;" v-if="logined">你好，{{user_info.petname}}</li>
                         <el-dropdown-item v-if="!logined" command="login">登录</el-dropdown-item>
                         <el-dropdown-item v-if="logined" command="center">个人中心</el-dropdown-item>
                         <el-dropdown-item v-if="logined" command="logout">注销</el-dropdown-item>
@@ -91,7 +91,7 @@
                         </el-dropdown-menu>
                       </el-dropdown>
                   </el-col>
-                    <el-col :span="6" style="padding-top: 14px;padding-bottom:10px"><el-button size="mini" style="height:28px;float:left;" @click="tool = !tool">返回</el-button></el-col>
+                    <el-col :span="6" style="padding-top: 14px;padding-bottom:10px"><el-button size="mini" style="height:28px;float:left;" @click="tool = !tool">返 回</el-button></el-col>
                 </el-row>
                 </el-collapse-transition>
                 <div class="resultList">
@@ -180,7 +180,7 @@
                     <el-popover
                         placement="right"
                         title="在搜索框中执行以下操作:"
-                        width="200"
+                        width="250"
                         trigger="hover">
                         <p>输入重要字词</p>
                         <p>示例：人民 群众</p>
@@ -194,7 +194,7 @@
                         <el-popover
                         placement="right"
                         title="在搜索框中执行以下操作:"
-                        width="200"
+                        width="250"
                         trigger="hover">
                         <p>用英文引号"将需要完全匹配的字词引起</p>
                         <p>示例："手机"</p>
@@ -208,9 +208,9 @@
                     <el-popover
                         placement="right"
                         title="在搜索框中执行以下操作:"
-                        width="200"
+                        width="250"
                         trigger="hover">
-                        <p>在不需要的字词前添加一个减号</p>
+                        <p>在不需要的字词前添加一个减号-</p>
                         <p>示例：-基站</p>
                         <el-input v-model="querystr.no" slot="reference"></el-input>
                     </el-popover>
@@ -222,7 +222,7 @@
                     <el-popover
                         placement="right"
                         title="在搜索框中执行以下操作:"
-                        width="200"
+                        width="250"
                         trigger="hover">
                         <p>在所需字词之间添加或符号|</p>
                         <p>示例：公平|公正|法治</p>
@@ -273,6 +273,9 @@
 </template>
 <script>
 import axios from 'axios';
+import { mapState } from "vuex";
+import { mapGetters } from "vuex";
+import { mapActions } from "vuex";
 export default {
     name: 'Search',
     data() {
@@ -280,15 +283,11 @@ export default {
             keyword:"",
             page:0,
             or_num:0,
-            username:"",
-            password:"",
             timevalue:{start:"",end:""},
             tool:false,
-            subscription:[],
-            logined:false,
+            subscribe:[],
             dialogVisible: false,
             timeVisible:false,
-            cansubscribe:true,
             pageshow:false,
             total_nums:100,
             total_time:0,
@@ -379,7 +378,26 @@ export default {
     },
     components: {
     },
+    computed: {
+        ...mapState({
+            logined: state => state.user_info.logined
+        }),
+        ...mapGetters({
+            user_info : 'read_user_info'
+        }),
+    },
+    watch:{
+        'user_info.subscribe':{
+            handler(){
+                this.cansubscribe = !this.user_info.subscribe.includes(this.keyword);
+            }
+        }
+    },
     methods:{
+        ...mapActions([
+            'get_info',
+            'set_subscribe',
+        ]),
         gotosearch(bool){
             if(this.keyword == ''||this.keyword.trim().length == 0){//.trim()意义在于去掉头尾空格，倘若一个输入数据全由空格组成，自然头尾全是空格
                 this.$router.push('/home');
@@ -402,7 +420,7 @@ export default {
                     this.setLocalHistory(this.keyword)
                     this.pushrecord(this.keyword);
                 }
-                location.reload();
+                this.$router.go(0);
             }
         },
         querySearch(queryString, cb){
@@ -419,29 +437,28 @@ export default {
                 cb(suggest);
             });
         },
-        subscribe(){
-            if(!this.subscription.includes(this.keyword)) {
-                if(this.subscription.length > 10){
-                    this.$message.error('订阅列表已满');
-                }else{
-                    this.subscription.unshift(this.keyword);
-                    sessionStorage.setItem("subscribe", JSON.stringify(this.subscription));
-                    this.$message({
-                    message: '已订阅此关键词',
-                    type: 'success'
-                    });
-                    this.cansubscribe = false;
-                }
-            }else{
-                let i = this.subscription.indexOf(this.keyword);
-                this.subscription.splice(i,1)
-                sessionStorage.setItem("subscribe", JSON.stringify(this.subscription));
-                this.$message('已取消订阅');
-                this.cansubscribe = true;
+        subscribe_btn(){
+            if(this.user_info.subscribe.length > 10){
+                this.$message.error('订阅列表已满');
+                return;
             }
-            let url = "/api/setsubscribe";
-            let response = axios.post(url,this.subscription);
-            return response.data;
+            let i = -1;
+            let msg = "关键词订阅成功"
+            if(this.user_info.subscribe.includes(this.keyword)) {
+                i = this.user_info.subscribe.indexOf(this.keyword);
+                msg = '已取消订阅'
+            }
+            this.set_subscribe({word:this.keyword,num:i}).then((bool)=>{
+                if(bool){
+                    this.$message({
+                        message: msg,
+                        type: 'success'
+                    });
+                    this.cansubscribe = !this.cansubscribe
+                }else{
+                    this.$message.error("操作出错")
+                }
+            })
         },
         async getsearchid(){
             let url = "/api/searchid";
@@ -504,10 +521,7 @@ export default {
         },
         async gethotkey(){
             let url = "/api/hotkey";
-            let response = await axios.get(url, {
-            params: {
-                }
-            })
+            let response = await axios.get(url, {params: {}})
             this.hotkey = response.data;
         },
         handleAdd(){
@@ -516,36 +530,6 @@ export default {
         handleSub(){
             this.querystr.or_input[this.or_num] = ""
             this.or_num -= 1; 
-        },
-        handleCommand(command){
-            if(command == "login"){
-                window.addEventListener('message',function(e){
-                    if(e.origin !== window.location.host){
-                        if(e.data == true){
-                            location.reload();
-                        }
-                    }
-                },false);
-                window.open(location.origin+'/login','_blank','width=450,height=500,menubar=no,toolbar=no,status=no,scrollbars=yes')
-            }
-            if(command == 'center'){
-                this.$router.push('/center');
-            }
-            if(command == 'logout'){
-                if(this.$cookies.isKey('XSRF-TOKEN')){
-                    let url = "/api/logout";
-                    axios.delete(url, {}).then((data)=>{
-                        if(data.data){
-                            sessionStorage.clear();
-                            this.$cookies.remove('XSRF-TOKEN');
-                            location.reload();
-                        }else{
-                        this.$message.error('操作出错');
-                        }
-                    }
-                    )
-                }
-            }
         },
         gotocache(id){
             let routeUrl = this.$router.resolve({path:'/cache',query:{id:id}});
@@ -632,53 +616,33 @@ export default {
             }else {
                 this.historyList = [];
             }
-            if (JSON.parse(sessionStorage.getItem("subscribe"))) {
-                this.subscription = JSON.parse(sessionStorage.getItem("subscribe"));//解析出错时会导致整个用户模块失效
-            }else {
-                this.subscription = [];
-            }
-            if (this.subscription.includes(this.keyword)){
-                this.cansubscribe = false;
-            }    
         },
         /** 清空历史搜索记录 */
         empty(){
             this.$confirm('此操作将删除本地历史记录', '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning'
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                type: 'warning'
             }).then(() => {
-            localStorage.removeItem('historyList');
-            this.historyList = [];
-            this.$message({
-                type: 'success',
-                message: '清空历史搜索成功!'
-            });
+                localStorage.removeItem('historyList');
+                this.historyList = [];
+                this.$message({
+                    type: 'success',
+                    message: '清空历史搜索成功!'
+                });
             }).catch(() => {
-            this.$message({
-                type: 'info',
-                message: '已取消删除'
-            });          
+                this.$message({
+                    type: 'info',
+                    message: '已取消删除'
+                });          
             });
-        },
-        async setinfo(){
-            let url = "/api/userinfo"
-            let response = await axios.get(url, {});
-            if(response.data){
-                sessionStorage.setItem("username", response.data.username);
-                sessionStorage.setItem("petname", response.data.petname);
-                sessionStorage.setItem("subscribe", JSON.stringify(response.data.subscribe));
-                this.logined = true;
-            }
         },
         sorthandleCommand(command) {
-            this.$message('click on item ' + this.sort[command].value);
             this.select.sort = command
             this.gotosearch(false);
         },
         timehandleCommand(command){
             if(command >= 0){
-                this.$message('click on item ' + this.time[command].value.start);
                 this.select.time = command
                 this.gotosearch(false);
             }else{
@@ -748,10 +712,7 @@ export default {
     },
     // 生命周期函数
     created(){
-        if(this.$cookies.isKey('XSRF-TOKEN') && !sessionStorage.getItem("username")){
-            this.setinfo();
-        }
-        this.gethotkey();
+        this.get_info();
     },
     activated(){//函数在每次进入\刷新时触发
         if(this.$route.query.keyword){
@@ -763,11 +724,9 @@ export default {
             this.getsearchid();
             this.getdata();
             this.getLocalKey();
+            this.gethotkey();
         }else{
             this.$router.push('/home');
-        }
-        if(sessionStorage.getItem("username") != null){
-            this.logined = true; 
         }
         let url = "/vec/vec";
         axios.get(url, {
@@ -779,7 +738,7 @@ export default {
             axios.post("/api/smart",data.data);
         });
     },
-    mounted(){//刷新时调用
+    mounted(){
 
     },
 }
@@ -788,6 +747,15 @@ export default {
   @import '../static/css/style.css'; 
   .AC-CounterT{
       background:#41D1B4;
+  }
+  .gray_button{
+      background-color:#8590a6;
+      border-color:#8590a6;  
+      color: #FFF;
+  }
+  .gray_button:hover{
+      background-color:#79869b;
+      border-color:#79869b; 
   }
   .title{
       font-size: 20px;

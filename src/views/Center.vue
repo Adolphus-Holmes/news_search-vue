@@ -4,7 +4,7 @@
             <el-header style="padding:0px;height:80px">
                 <el-row style="background: #C0C4CC;"> 
                   <el-col :span="19">
-                    <el-page-header @back="goBack" title="返回" content="个人中心" style="padding: 24px;padding-left: 44px;line-height:24px;font-size:20px;">
+                    <el-page-header @back="goBack" title="主页" content="个人中心" style="padding: 24px;padding-left: 44px;line-height:24px;font-size:20px;">
                     </el-page-header>
                   </el-col>
                   <el-col :span="5" style="padding-left:20px;padding-top:5px;">
@@ -16,7 +16,7 @@
                             </div> -->
                         </div>
                         <el-dropdown-menu slot="dropdown">
-                            <li style="list-style: none;line-height: 36px;padding: 0 20px;margin: 0;font-size: 14px;color: #606266;outline: 0;">你好，{{petname}}</li>
+                            <li style="list-style: none;line-height: 36px;padding: 0 20px;margin: 0;font-size: 14px;color: #606266;outline: 0;">你好，{{user_info.petname}}</li>
                             <el-dropdown-item command="logout">注销</el-dropdown-item>
                         </el-dropdown-menu>
                     </el-dropdown>
@@ -165,7 +165,7 @@
                         </div>
                     </el-col>
                 </el-row>
-                <el-row style="padding-top:10vh" v-if="seehistory && subscribe.length"> 
+                <el-row style="padding-top:10vh" v-if="seehistory && user_info.subscribe.length"> 
                   <el-col :span="24">
                       <div class="ibx-advice">
                         <div class="ibx-advice-logo">
@@ -183,7 +183,7 @@
                         <div class="ibx-advice-logo">
                             <i style="padding-top:4px" class="el-icon-setting"></i>
                         </div>
-                        <div class="ibx-advice-ctx" @click="drawer = true">
+                        <div class="ibx-advice-ctx" @click="opendrawer()">
                             账户设置
                         </div>
                       </div>
@@ -206,14 +206,14 @@
                 </el-row>
             </el-header>
             <el-main style="padding-top:15px">
-                <el-table :data="subscribe" :row-style="{height: '35px'}"  :cell-style="{padding: '5px 0'}" style="padding-top:15px">
+                <el-table :data="user_info.subscribe" :row-style="{height: '35px'}"  :cell-style="{padding: '5px 0'}" style="padding-top:15px">
                   <el-table-column label="订阅列表"><template slot-scope="scope"><span>{{ scope.row }}</span></template></el-table-column>
                   <el-table-column label="添加" scoped-slot>
                       <template slot="header">
                           <el-button style="float:right;height:100%" size="medium" round icon="el-icon-plus" @click = "innerVisible = true"></el-button>
                       </template>
                       <template slot-scope="scope">
-                          <el-button style="float:right;height:100%" size="medium" type="danger" round icon="el-icon-delete" @click = "subscribedel(scope.$index)"></el-button>
+                          <el-button style="float:right;height:100%" size="medium" type="danger" round icon="el-icon-delete" @click = "subscribedel(scope.row,scope.$index)"></el-button>
                       </template>
                     </el-table-column>
                 </el-table>
@@ -245,7 +245,7 @@
                         <el-col :span="24" style="">
                             <el-switch
                                 v-model="pushrecord"
-                                @change="pushchange()"
+                                @change="change('pushrecord',pushrecord)"
                                 active-color="#13ce66"
                                 inactive-color="#ff4949"
                                 active-text="开启"
@@ -267,7 +267,7 @@
                         <el-col :span="24" style="">
                             <el-switch
                                 v-model="saverecord"
-                                @change="savechange()"
+                                @change="change('saverecord',saverecord)"
                                 active-color="#13ce66"
                                 inactive-color="#ff4949"
                                 active-text="开启"
@@ -327,6 +327,9 @@
 <script>
 import axios from 'axios';
 import JsEncrypt from 'jsencrypt';
+import { mapState } from "vuex";
+import { mapGetters } from "vuex";
+import { mapActions } from "vuex";
 export default {
     name: 'Center',
     data() {
@@ -339,7 +342,6 @@ export default {
         };
         return{
             history:[],
-            line:[],
             username:"",
             count:0,
             subscribe:[],
@@ -348,15 +350,14 @@ export default {
             multipleSelection: [],
             wordVisible:false,
             password:"",
-            init_petname:"",
             newpassword:"",
             subscribedata:[],
             key:"",
+            petname:"",
             innerVisible:false,
             Article:{},
             loading:false,
-            size:25,
-            petname:"",
+            historysize:25,
             enable:true,
             seehistory:false,
             pushrecord:true,
@@ -395,7 +396,7 @@ export default {
                 onClick(picker) {
                 const end = new Date();
                 const start = new Date();
-                start.setTime(start.getTime() - 3600 * 1000 * 24 * 183);
+                start.setTime(start.getTime() - 3600 * 1000 * 24 * 180);
                 picker.$emit('pick', [start, end]);
                 }
             },
@@ -436,40 +437,48 @@ export default {
             },
         }
     },
-    components: {
+    computed: {
+        ...mapState({
+
+        }),
+        ...mapGetters({
+            user_info : 'read_user_info'
+        }),
     },
-    methods:{
-        goBack(){
-            this.$router.go(-1);
-        },
-        handleCommand(command){
-            if(command == 'logout'){
-                if(this.$cookies.isKey('XSRF-TOKEN')){
-                    let url = "/api/logout";
-                    axios.delete(url, {}).then((data)=>{
-                        if(data.data){
-                            sessionStorage.clear();
-                            this.$cookies.remove('XSRF-TOKEN');
-                            this.$router.push('/home');
-                        }else{
-                            this.$message.error('操作出错');
-                        }
-                    }
-                    )
+    watch:{
+        'user_info.subscribe':{
+            handler(){
+                if(this.user_info.subscribe.length == 0){
+                    this.seehistory = true
+                    localStorage.setItem("seehistory",this.seehistory);
+                }else{
+                    this.getsubscribe(1,20).then((data)=>{
+                        console.log(data)
+                        this.subscribedata = []
+                        this.subscribedata.push(data)
+                    }) 
                 }
             }
+        }
+    },
+    methods:{
+        ...mapActions([
+            'set_subscribe',
+            'set_petname'
+        ]),
+        goBack(){
+            this.$router.push('/home');
         },
-        savechange(){
-            localStorage.setItem("saverecord", this.saverecord);
+        change(name,bool){
+            localStorage.setItem(name, bool);
         },
-        pushchange(){
-            localStorage.setItem("pushrecord", this.pushrecord);
-        },
-        async getsubscribe(num){
-            if(this.subscribe.length){
-                let url = "/api/subscribe?page="+num;
-                let response = await axios.post(url,this.subscribe)
-                this.subscribedata.push(response.data);
+        async getsubscribe(num,size){
+            if(this.user_info.subscribe.length){
+                let url = "/api/subscribe?page="+num+"&size="+size;
+                let response = await axios.post(url,this.user_info.subscribe)
+                return response.data;
+            }else{
+                return []
             }
         },
         async gotosearch(){
@@ -480,6 +489,10 @@ export default {
         page(n){
             this.pagenum += n
             this.gethistory(this.pagenum)
+        },
+        opendrawer(){
+            this.petname = this.user_info.petname;
+            this.drawer = true;
         },
         formatdate(list){
             let h = new Array();
@@ -517,7 +530,7 @@ export default {
                     to:to,
                 }
             })
-            this.count = Math.ceil(response.data/this.size)
+            this.count = Math.ceil(response.data/this.historysize)
         },
         async gethistory(num){
             let url = "/api/history";
@@ -527,101 +540,64 @@ export default {
                 to = this.datevalue[1]
                 from = this.datevalue[0]
             }
-            let data = {page:num,size:this.size,from:from,to:to}
+            let data = {page:num,size:this.historysize,from:from,to:to}
             let response = await axios.get(url, {
                 params:data
             })
             this.formatdate(response.data);
-        },
-        async setinfo(){
-            if(!this.getinfo()){
-                let url = "/api/userinfo"
-                let response = await axios.get(url, {});
-                if(response.data){
-                    sessionStorage.setItem("username", response.data.username);
-                    if(response.data.petname){
-                        sessionStorage.setItem("petname", response.data.petname);
-                    }
-                    sessionStorage.setItem("subscribe", JSON.stringify(response.data.subscribe));
-                    this.getinfo();
-                }else{
-                    sessionStorage.clear();
-                    this.$router.push('/home');
-                }
-            }
-        },  
-        getinfo(){
-            if(!sessionStorage.getItem("username")){
-                return false;
-            }
-            this.username = sessionStorage.getItem("username");
-            if(JSON.parse(sessionStorage.getItem("subscribe"))) {
-                this.subscribe = JSON.parse(sessionStorage.getItem("subscribe"));
-            }else {
-                this.subscribe = [];
-            }
-            if(sessionStorage.getItem("petname") != null){
-                this.petname = sessionStorage.getItem("petname");
-                this.init_petname = sessionStorage.getItem("petname");
-            }
-            return true;
         },
         async addsubscribe(){
             if(this.onesubscibe.trim().length == 0){
                 this.$message.error('关键词为空');
                 return false
             }
-            if(!this.subscribe.includes(this.onesubscibe)) {
-                if(this.subscribe.length > 10){
+            if(!this.user_info.subscribe.includes(this.onesubscibe)) {
+                if(this.user_info.subscribe.length > 10){
                     this.$message.error('订阅列表已满');
                 }else{
-                    this.subscribe.unshift(this.onesubscibe);
-                    sessionStorage.setItem("subscribe", JSON.stringify(this.subscribe));
-                    this.$message({
-                    message: '关键词重复',
-                    type: 'success'
-                    });
-                    let url = "/api/setsubscribe";
-                    let response = axios.post(url,this.subscribe);
-                    this.innerVisible = false
-                    this.subscribe = ""
-                    return response.data;
+                    this.set_subscribe({word:this.onesubscibe,num:-1}).then((bool)=>{
+                        if(bool){
+                            this.$message({
+                                message: '关键词订阅成功',
+                                type: 'success'
+                            });
+                            this.innerVisible = false
+                            this.onesubscibe = ""
+                        }else{
+                            this.$message.error("操作出错")
+                        }
+                    })
                 }
             }else{
-                this.$message.error('关键词已订阅');
+                this.$message.error('此关键词已订阅');
             }
         },
         resetForm(formName) {
             this.$refs[formName].resetFields();
             this.wordVisible = false;
         },
-        subscribedel(index){
-            this.subscribe.splice(index,1)
-            sessionStorage.setItem("subscribe", JSON.stringify(this.subscribe));
-            let url = "/api/setsubscribe";
-            let response = axios.post(url,this.subscribe);
-            return response.data;
-        },
-        getNowFormatDate(num){
-            var date = new Date();
-            date.setTime(date.getTime() - 60*60*24*1000*num) 
-            var year = date.getFullYear();
-            var month = date.getMonth() + 1;
-            var strDate = date.getDate();
-            if (month >= 1 && month <= 9) {
-                month = "0" + month;
-            }
-            if (strDate >= 0 && strDate <= 9) {
-                strDate = "0" + strDate;
-            }
-            var currentdate = year + "年" + month + "月" + strDate + "日";
-            return currentdate;
+        subscribedel(word,index){
+            this.set_subscribe({word:word,num:index}).then((bool)=>{
+                if(bool){
+                    this.$message({
+                        type: 'success',
+                        message: '订阅关键词已删除!'
+                    });
+                }else{
+                    this.$message.error("操作出错")
+                }
+            })
         },
         load(){
             this.subscribenum +=1;
-            this.getsubscribe(this.subscribenum)
+            this.getsubscribe(this.subscribenum,10).then((data)=>{
+                this.subscribedata.push(data)
+            }) 
         },
         async setArticle(id){
+            if(this.Article.title){
+                this.$refs['view'].wrap.scrollTop = 0
+            }
             this.loading = true
             let url = "/api/find";
             let response = await axios.get(url, {
@@ -633,7 +609,6 @@ export default {
             this.Article = response.data;
             this.Article.text = "\t"+this.Article.text.trim()
             this.Article.text = this.Article.text.replace(/。\s{3,}/g,"。\n　　");
-            this.$refs['view'].wrap.scrollTop = 0
             this.getsimilar()
         },
         async getsimilar(){
@@ -647,29 +622,26 @@ export default {
             });
         },
         initpetname(){
-            this.petname = this.init_petname;
+            this.petname = this.user_info.petname;
             this.enable = true;
         },
         async setpetname(){
-            if(this.init_petname == this.petname){
+            if(this.petname == this.user_info.petname){
                 this.$message.error('当前昵称与原先一致');
                 return false
             }
-            let url = "/api/setpetname"
-            let data = {petname:this.petname}
-            let response = await axios.patch(url,data)
-            if(response.data){
-                this.$message({
-                type: 'success',
-                message: '昵称已更改!'
-                });
-                sessionStorage.setItem("petname", this.petname);
-                this.enable = true;
-                this.init_petname = this.petname;
-            }else{
-                this.$message.error('操作出错');
-            }
-            return response.data
+            this.set_petname(this.petname).then((bool)=>{
+                if(bool){
+                    this.$message({
+                        type: 'success',
+                        message: '昵称已更改!'
+                    });
+                    this.enable = true;
+                    this.petname = this.user_info.petname;
+                }else{
+                    this.$message.error("操作出错")
+                }
+            })
         },
         submitForm(){
             this.$refs.form.validate((valid) => {
@@ -681,14 +653,9 @@ export default {
             }
             });
         },
-        async visiblepassword(){
-            let data = await axios.get("/api/getkey", {params: {}})
-            if(data.data){
-                this.key = data.data;
-                this.wordVisible = true;
-            }else{
-                this.$message.error('操作出错');
-            }
+        visiblepassword(){
+            this.wordVisible = true;
+            this.getkey();
         },
         async setpassword(){
             let encrypt = new JsEncrypt()
@@ -700,8 +667,8 @@ export default {
             let response = await axios.patch(url,data);
             if(response.data){
                 this.$message({
-                type: 'success',
-                message: '密码已更改!'
+                    type: 'success',
+                    message: '密码已更改!'
                 });
                 this.wordVisible = false;
                 this.resetForm('form');
@@ -739,20 +706,16 @@ export default {
         changesee(){
             this.seehistory = !this.seehistory;
             localStorage.setItem("seehistory",this.seehistory);
-        }
+        },
+        
     },
     created(){
+        this.$store.dispatch("get_info");
     },
     activated(){
         document.title = "个人中心 - 个人新闻检索网站";
-        this.setinfo();
         this.getLocal();
-        if(!this.subscribe.length){
-            this.seehistory = true
-            localStorage.setItem("seehistory",this.seehistory);
-        }
         this.gotosearch();
-        this.load();
     }
 }
 </script>

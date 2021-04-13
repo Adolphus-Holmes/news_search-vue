@@ -51,6 +51,7 @@
 <script>
 import axios from 'axios';
 import JsEncrypt from 'jsencrypt';
+import { mapActions } from "vuex";
 export default {
     name: 'Search',
     data() {
@@ -110,13 +111,9 @@ export default {
     components: {
     },
     methods:{
-        async setinfo(){
-            let url = "/api/userinfo"
-            let response = await axios.get(url, {});
-            sessionStorage.setItem("username", response.data.username);
-            sessionStorage.setItem("petname", response.data.petname);
-            sessionStorage.setItem("subscribe", JSON.stringify(response.data.subscribe));
-        },
+        ...mapActions([
+            'get_info',
+        ]),
         async login(){
             this.fullscreenLoading = true;
             setTimeout(() => {
@@ -131,7 +128,7 @@ export default {
             let response = await axios.post(url,data);
             if(response.data){
                 window.opener.postMessage(response.data, window.opener.location.origin);
-                this.setinfo();
+                this.get_info();
                 this.fullscreenLoading = false;
                 window.close();
             }else{
@@ -186,19 +183,11 @@ export default {
                 }
             });
         },
-        async getkey(){
-            let data = await axios.get("/api/getkey", {params: {}})
-            if(data.data){
-                this.key = data.data;
-            }else{
-                this.$message.error('获取公钥失败');
-            }
-        },
     },
     created(){
     },
     activated(){
-        this.getkey()
+        this.getkey();
     }
 }
 </script>
